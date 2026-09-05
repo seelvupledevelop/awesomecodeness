@@ -1,65 +1,17 @@
-import { render, useKeyboard } from "@opentui/solid";
+import { render } from "@opentui/solid";
 import { createCliRenderer } from "@opentui/core";
-import { createSignal, For, onMount, onCleanup } from "solid-js";
+import { createSignal, For } from "solid-js";
 import { chat } from "./agent";
 
 function App() {
   const [input, setInput] = createSignal("");
   const [theme, setTheme] = createSignal("dark");
   const [messages, setMessages] = createSignal<{role: string, text: string}[]>([]);
-  const [showCommands, setShowCommands] = createSignal(false);
   const [isProcessing, setIsProcessing] = createSignal(false);
-  const [cursorVisible, setCursorVisible] = createSignal(true);
   
   const dim = () => theme() === "dark" ? "gray" : "#888888";
   const fg = () => theme() === "dark" ? "white" : "black";
   const bg = () => theme() === "dark" ? "black" : "white";
-
-  onMount(() => {
-    const interval = setInterval(() => {
-      setCursorVisible((c) => !c);
-    }, 500);
-    onCleanup(() => clearInterval(interval));
-  });
-
-  useKeyboard((key) => {
-    if (isProcessing()) return;
-
-    if (key.name === "return") {
-      const text = input().trim();
-      if (!text) return;
-
-      if (text === "/dark") { setTheme("dark"); setInput(""); setShowCommands(false); return; }
-      if (text === "/light") { setTheme("light"); setInput(""); setShowCommands(false); return; }
-      if (text === "/exit") { process.exit(0); }
-
-      setMessages((prev) => [...prev, { role: "user", text }]);
-      setInput("");
-      setShowCommands(false);
-      setIsProcessing(true);
-
-      const chatHistory = messages().map(m => ({ role: m.role, content: m.text })).filter(m => m.role === "user" || m.role === "assistant");
-      chat(chatHistory, (role, text) => {
-        setMessages((prev) => [...prev, { role, text }]);
-      }).finally(() => {
-        setIsProcessing(false);
-      });
-      
-    } else if (key.name === "backspace") {
-      if (input() === "") {
-        setShowCommands(false);
-      } else {
-        setInput(input().slice(0, -1));
-      }
-    } else if (key.name === "tab") {
-      setTheme(theme() === "dark" ? "light" : "dark");
-    } else if (key.sequence === "/") {
-      setInput(input() + "/");
-      setShowCommands(true);
-    } else if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta && !key.alt) {
-      setInput(input() + key.sequence);
-    }
-  });
 
   return (
     <box 
@@ -92,31 +44,39 @@ function App() {
         </For>
       </box>
 
-      {/* Command Menu Popup */}
-      {showCommands() && (
-        <box flexDirection="column" width={80} borderStyle="single" borderColor="blue" padding={1} marginBottom={1}>
-          <text color="blue" bold>Available Skills / Commands</text>
-          <text color={fg()}>/light   - Switch to light mode</text>
-          <text color={fg()}>/dark    - Switch to dark mode</text>
-          <text color={fg()}>/exit    - Quit application</text>
-        </box>
-      )}
-
-      {/* Input Box Fixed (No Nested Texts) */}
+      {/* Input Box - Native OpenTUI */}
       <box flexDirection="column" width={80}>
         <box flexDirection="row" marginBottom={1}>
           <text color="red">▎ </text>
           {isProcessing() ? (
             <text color={dim()}>Awesome is thinking...</text>
           ) : (
-            <box flexDirection="row">
-              {input() === "" ? (
-                <text color={dim()}>Type your message... (type / for commands)</text>
-              ) : (
-                <text color={fg()}>{input()}</text>
-              )}
-              <text color="red">{cursorVisible() ? "█" : " "}</text>
-            </box>
+            <input 
+              placeholder="Type your message... (type / for commands)"
+              flexGrow={1}
+              color={fg()}
+              value={input()}
+              onInput={(val: string) => setInput(val)}
+              onSubmit={() => {
+                const text = input().trim();
+                if (!text) return;
+
+                if (text === "/dark") { setTheme("dark"); setInput(""); return; }
+                if (text === "/light") { setTheme("light"); setInput(""); return; }
+                if (text === "/exit") { process.exit(0); }
+
+                setMessages((prev) => [...prev, { role: "user", text }]);
+                setInput("");
+                setIsProcessing(true);
+
+                const chatHistory = messages().map(m => ({ role: m.role, content: m.text })).filter(m => m.role === "user" || m.role === "assistant");
+                chat(chatHistory, (role, text) => {
+                  setMessages((prev) => [...prev, { role, text }]);
+                }).finally(() => {
+                  setIsProcessing(false);
+                });
+              }}
+            />
           )}
         </box>
         
