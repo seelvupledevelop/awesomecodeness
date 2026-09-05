@@ -2,6 +2,7 @@ import os
 import json
 import httpx
 import subprocess
+import asyncio
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Button, Static, Label, Input, RichLog, OptionList
@@ -15,6 +16,11 @@ class Config:
         self.model = "qwen2.5-coder:3b"
         self.persona = "Default"
         self.project_dir = os.getcwd()
+        self.skills = {
+            "Terminal Execution": True,
+            "Web Search": False,
+            "IDE Integration": False
+        }
 
 config = Config()
 
@@ -46,6 +52,7 @@ class ConfigScreen(Screen):
             Button("Set API Provider Template", id="btn_provider"),
             Button("Set API Key", id="btn_key"),
             Button("Set Agent Persona", id="btn_persona"),
+            Button("Manage Awesome Skills", id="btn_skills"),
             Button("Execute Dalai-Lama (Local Models)", id="btn_dalai"),
             Button("Start Chat", id="btn_chat", variant="error"),
             id="config_container"
@@ -67,10 +74,44 @@ class ConfigScreen(Screen):
             self.app.push_screen(KeyScreen())
         elif event.button.id == "btn_persona":
             self.app.push_screen(PersonaScreen())
+        elif event.button.id == "btn_skills":
+            self.app.push_screen(SkillsScreen())
         elif event.button.id == "btn_dalai":
             self.app.push_screen(DalaiScreen())
         elif event.button.id == "btn_chat":
             self.app.push_screen(ChatScreen())
+
+class SkillsScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label("╔══════════════════════════════════════════════════════╗\n║               Manage Awesome Skills                  ║\n╚══════════════════════════════════════════════════════╝", classes="title"),
+            OptionList(
+                f"[ {'X' if config.skills['Terminal Execution'] else ' '} ] Terminal Execution Sandbox",
+                f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
+                f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks",
+                id="skills_list"
+            ),
+            Label("\nUse Enter to toggle skills. These enhance what your agent can do natively!"),
+            Button("Back", id="btn_back")
+        )
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        idx = event.option_index
+        keys = list(config.skills.keys())
+        key = keys[idx]
+        config.skills[key] = not config.skills[key]
+        
+        # Re-render list
+        lst = self.query_one("#skills_list", OptionList)
+        lst.clear_options()
+        lst.add_options([
+            f"[ {'X' if config.skills['Terminal Execution'] else ' '} ] Terminal Execution Sandbox",
+            f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
+            f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks"
+        ])
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.app.pop_screen()
 
 class ProviderScreen(Screen):
     def compose(self) -> ComposeResult:
@@ -201,11 +242,24 @@ class ChatScreen(Screen):
             elif user_input == "/memory":
                 log.write("[bold blue]AGENT:[/bold blue] 💾 Loading MiMo-style Persistent Memory...")
             elif user_input == "/skills":
-                log.write("[bold blue]AGENT:[/bold blue] 🧰 Loading Awesome-Code Skills architecture...\n💻 Code Execution Sandbox (Active)\n🌐 Web Search Plugin (Active)\n🎙️ Text-to-Speech Output (Ready)\n🔌 IDE Integration Hooks (Listening)\n✅ All Awesome Agent Skills are loaded and available! 🔥")
+                self.app.push_screen(SkillsScreen())
+            elif user_input.startswith("/exec "):
+                if config.skills["Terminal Execution"]:
+                    cmd = user_input[6:]
+                    log.write(f"[bold yellow]⚙️ Executing Native Skill (Terminal):[/bold yellow] {cmd}")
+                    try:
+                        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                        log.write(f"[grey]{result.stdout}[/grey]")
+                        if result.stderr:
+                            log.write(f"[bold red]{result.stderr}[/bold red]")
+                    except Exception as e:
+                        log.write(f"[bold red]Execution failed: {str(e)}[/bold red]")
+                else:
+                    log.write("[bold red]❌ Terminal Execution Skill is NOT installed/enabled. Go to Config -> Manage Skills to enable it.[/bold red]")
             elif user_input == "/clear":
                 log.clear()
             else:
-                log.write("[bold red]AGENT:[/bold red] Unknown command. Try /dreamawesome, /memory, /skills, /clear")
+                log.write("[bold red]AGENT:[/bold red] Unknown command. Try /dreamawesome, /memory, /skills, /exec <cmd>, /clear")
             return
 
         # Prepare API Call
