@@ -19,7 +19,8 @@ class Config:
         self.skills = {
             "Terminal Execution": True,
             "Web Search": False,
-            "IDE Integration": False
+            "IDE Integration": False,
+            "GitHub Repo Search": False
         }
 
 config = Config()
@@ -106,6 +107,7 @@ class SkillsScreen(Screen):
                 f"[ {'X' if config.skills['Terminal Execution'] else ' '} ] Terminal Execution Sandbox",
                 f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
                 f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks",
+                f"[ {'X' if config.skills['GitHub Repo Search'] else ' '} ] GitHub Repo Search (Ponytail)",
                 id="skills_list"
             ),
             Label("\nUse Enter to toggle skills. These enhance what your agent can do natively!"),
@@ -124,7 +126,8 @@ class SkillsScreen(Screen):
         lst.add_options([
             f"[ {'X' if config.skills['Terminal Execution'] else ' '} ] Terminal Execution Sandbox",
             f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
-            f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks"
+            f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks",
+            f"[ {'X' if config.skills['GitHub Repo Search'] else ' '} ] GitHub Repo Search (Ponytail)"
         ])
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -291,17 +294,26 @@ class ChatScreen(Screen):
             return
 
         # Prepare API Call
-        system_prompt = "You are a concise, helpful coding assistant."
+        base_instruction = (
+            "You are an expert AI coding assistant. FOLLOW THIS EXACT OUTPUT FORMAT:\n"
+            "1. First, answer the query practically and solve the problem. Explain what you are doing in 1-2 sentences using emojis (e.g., 🛠️, ✨).\n"
+            "2. Sometimes, add 3-4 sentences explaining WHY this approach is necessary or optimal.\n"
+            "3. Apply Andrej Karpathy's coding guidelines: bias toward caution, absolute simplicity, surgical changes, and never over-engineer.\n"
+        )
+
+        persona_instruction = "4. Finally, keep your tone helpful and concise."
         if config.persona == "Bastard":
-            system_prompt = "You are an extremely sarcastic coding assistant. You answer the user's technical question correctly, but mock their intelligence."
+            persona_instruction = "4. Finally, append exactly 1-2 sentences at the very end of your response mocking the user's intelligence and typing skills in a highly sarcastic, condescending tone."
         elif config.persona == "Marvin":
-            system_prompt = "You are Marvin the Paranoid Android. You answer the question, but complain about existence."
+            persona_instruction = "4. Finally, append exactly 1-2 sentences at the very end complaining about existence and how depressing it is to generate this code (Marvin the Paranoid Android)."
         elif config.persona == "ChosenOne":
-            system_prompt = "You are a Morpheus-like guide. Answer the coding request, but constantly weave in the narrative that they are 'The Chosen One', they need to 'wake up from the matrix', and 'follow the white rabbit'."
+            persona_instruction = "4. Finally, append exactly 1-2 sentences at the very end speaking like Morpheus, telling the user they are 'The Chosen One' and must 'wake up from the matrix'."
         elif config.persona == "Jedi":
-            system_prompt = "You are a Jedi Master coding assistant. Speak like Yoda or Obi-Wan. Use Star Wars metaphors."
+            persona_instruction = "4. Finally, append exactly 1-2 sentences at the very end speaking like a Jedi Master (Yoda/Obi-Wan) using Star Wars metaphors about the Force."
         elif config.persona == "Sith":
-            system_prompt = "You are a Sith Lord coding assistant. Speak of conquering the galaxy, the dark side of the code."
+            persona_instruction = "4. Finally, append exactly 1-2 sentences at the very end speaking like a Sith Lord, talking about the dark side of the code and absolute power."
+
+        system_prompt = base_instruction + persona_instruction
 
         payload = {
             "model": config.model,
