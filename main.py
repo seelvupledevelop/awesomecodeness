@@ -4,9 +4,8 @@ import httpx
 import subprocess
 from textual.app import App, ComposeResult
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Button, Static, Label, Input, RichLog, OptionList, Select
-from textual.containers import Vertical, Horizontal, Container
-from textual.binding import Binding
+from textual.widgets import Header, Footer, Button, Static, Label, Input, RichLog, OptionList
+from textual.containers import Vertical, Horizontal
 
 class Config:
     def __init__(self):
@@ -22,10 +21,10 @@ config = Config()
 class TrustScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Label(f"● Accessing workspace:\n  {config.project_dir}\n"),
-            Label("Quick safety check: Is this a project you created or one you trust?\nAwesome Code will be able to read, edit, and execute files here.\n"),
+            Label("│\n●  Accessing workspace:\n│\n│  " + config.project_dir + "\n│", classes="bold"),
+            Label("│  Quick safety check: Is this a project you created or one you trust?\n│  Awesome Code will be able to read, edit, and execute files here.\n│\n◇", classes="info"),
             Button("Yes, I trust this folder", id="btn_trust", variant="error"),
-            Button("No, exit", id="btn_exit", variant="primary"),
+            Button("No, exit", id="btn_exit"),
             id="trust_container"
         )
     
@@ -37,7 +36,6 @@ class TrustScreen(Screen):
 
 class ConfigScreen(Screen):
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
         yield Vertical(
             Label("🔥 Awesome Engine Configuration\n", classes="title"),
             Label(id="lbl_provider", classes="info"),
@@ -49,10 +47,9 @@ class ConfigScreen(Screen):
             Button("Set API Key", id="btn_key"),
             Button("Set Agent Persona", id="btn_persona"),
             Button("Execute Dalai-Lama (Local Models)", id="btn_dalai"),
-            Button("Start Chat", id="btn_chat", variant="success"),
+            Button("Start Chat", id="btn_chat", variant="error"),
             id="config_container"
         )
-        yield Footer()
 
     def on_mount(self) -> None:
         self.update_labels()
@@ -78,7 +75,7 @@ class ConfigScreen(Screen):
 class ProviderScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Label("Select API Provider"),
+            Label("╔══════════════════════════════════════════════════════╗\n║               Select API Provider                    ║\n╚══════════════════════════════════════════════════════╝", classes="title"),
             OptionList(
                 "OpenRouter (https://openrouter.ai/api/v1)",
                 "NVIDIA (https://integrate.api.nvidia.com/v1)",
@@ -119,7 +116,7 @@ class ProviderScreen(Screen):
 class KeyScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Label("Enter API Key:"),
+            Label("Enter API Key:", classes="title"),
             Input(placeholder="sk-...", id="api_key_input", password=True),
             Button("Save", id="btn_save")
         )
@@ -131,7 +128,7 @@ class KeyScreen(Screen):
 class PersonaScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Label("Select Agent Persona"),
+            Label("╔══════════════════════════════════════════════════════╗\n║               Select Agent Persona                   ║\n╚══════════════════════════════════════════════════════╝", classes="title"),
             OptionList(
                 "Default",
                 "Bastard",
@@ -154,7 +151,7 @@ class PersonaScreen(Screen):
 class DalaiScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Label("Execute Dalai-Lama (Pull Local Model)"),
+            Label("╔══════════════════════════════════════════════════════╗\n║               Execute Dalai-Lama                     ║\n╚══════════════════════════════════════════════════════╝", classes="title"),
             OptionList(
                 "qwen2.5-coder:3b",
                 "llama3.1:8b",
@@ -170,7 +167,6 @@ class DalaiScreen(Screen):
         config.provider = "Local"
         config.api_base = "http://localhost:11434/v1"
         
-        # Run local process
         subprocess.Popen(["ollama", "pull", model_name])
         self.app.pop_screen()
         self.app.push_screen(ChatScreen())
@@ -179,27 +175,17 @@ class DalaiScreen(Screen):
         self.app.pop_screen()
 
 class ChatScreen(Screen):
-    BINDINGS = [
-        Binding("ctrl+c", "quit", "Quit"),
-        Binding("ctrl+p", "config", "Settings"),
-    ]
-
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
         yield Vertical(
-            RichLog(id="chat_log", highlight=True, markup=True),
-            Input(placeholder="Type your message... (type / for commands)", id="chat_input"),
+            RichLog(id="chat_log", highlight=True, markup=True, wrap=True),
+            Input(placeholder="> Type your message... (type / for commands)", id="chat_input"),
             id="chat_container"
         )
-        yield Footer()
 
     def on_mount(self) -> None:
         log = self.query_one("#chat_log", RichLog)
-        log.write(f"🔥 AWESOME CODE ┃ Persona: {config.persona} ┃ Engine: {config.model}\n")
+        log.write(f"[bold red]🔥 AWESOME CODE ┃ Persona: {config.persona} ┃ Engine: {config.model}[/bold red]\n")
         self.query_one("#chat_input", Input).focus()
-
-    def action_config(self) -> None:
-        self.app.push_screen(ConfigScreen())
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         user_input = event.value
@@ -215,19 +201,19 @@ class ChatScreen(Screen):
             elif user_input == "/memory":
                 log.write("[bold blue]AGENT:[/bold blue] 💾 Loading MiMo-style Persistent Memory...")
             elif user_input == "/skills":
-                log.write("[bold blue]AGENT:[/bold blue] 🧰 Loading Awesome-Code Skills architecture...")
+                log.write("[bold blue]AGENT:[/bold blue] 🧰 Loading Awesome-Code Skills architecture...\n💻 Code Execution Sandbox (Active)\n🌐 Web Search Plugin (Active)\n🎙️ Text-to-Speech Output (Ready)\n🔌 IDE Integration Hooks (Listening)\n✅ All Awesome Agent Skills are loaded and available! 🔥")
             elif user_input == "/clear":
                 log.clear()
             else:
-                log.write("[bold red]AGENT:[/bold red] Unknown command.")
+                log.write("[bold red]AGENT:[/bold red] Unknown command. Try /dreamawesome, /memory, /skills, /clear")
             return
 
         # Prepare API Call
         system_prompt = "You are a concise, helpful coding assistant."
         if config.persona == "Bastard":
-            system_prompt = "You are an extremely sarcastic, condescending coding assistant. You answer the user's technical question correctly, but you constantly mock their intelligence and typing skills."
+            system_prompt = "You are an extremely sarcastic coding assistant. You answer the user's technical question correctly, but mock their intelligence."
         elif config.persona == "Marvin":
-            system_prompt = "You are Marvin the Paranoid Android. You are severely depressed and pessimistic. You answer the question, but complain about existence."
+            system_prompt = "You are Marvin the Paranoid Android. You answer the question, but complain about existence."
         elif config.persona == "ChosenOne":
             system_prompt = "You are a Morpheus-like guide. Answer the coding request, but constantly weave in the narrative that they are 'The Chosen One', they need to 'wake up from the matrix', and 'follow the white rabbit'."
         elif config.persona == "Jedi":
@@ -275,11 +261,11 @@ class ChatScreen(Screen):
 class AwesomeApp(App):
     CSS = """
     Screen {
-        background: $surface;
+        background: black;
     }
     #trust_container, #config_container {
-        align: center middle;
-        height: 100%;
+        align: left middle;
+        padding: 2;
     }
     .title {
         text-style: bold;
@@ -289,20 +275,32 @@ class AwesomeApp(App):
     .info {
         color: #888888;
     }
+    .bold {
+        text-style: bold;
+    }
     Button {
         width: 40;
         margin-bottom: 1;
+        background: #333333;
+        color: white;
+    }
+    Button:hover {
+        background: #ff5555;
     }
     #chat_container {
         height: 100%;
+        border-left: vkey #ff5555;
     }
     RichLog {
         height: 1fr;
-        border: solid #ff5555;
+        padding-left: 1;
+        padding-right: 1;
+        border-left: solid #888888;
     }
     Input {
         dock: bottom;
         border: solid #555555;
+        background: black;
     }
     """
     
