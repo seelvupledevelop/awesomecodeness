@@ -51,6 +51,7 @@ class ConfigScreen(Screen):
             Label(""),
             Button("Set API Provider Template", id="btn_provider"),
             Button("Set API Key", id="btn_key"),
+            Button("Set Custom Model", id="btn_model"),
             Button("Set Agent Persona", id="btn_persona"),
             Button("Manage Awesome Skills", id="btn_skills"),
             Button("Execute Dalai-Lama (Local Models)", id="btn_dalai"),
@@ -72,6 +73,8 @@ class ConfigScreen(Screen):
             self.app.push_screen(ProviderScreen())
         elif event.button.id == "btn_key":
             self.app.push_screen(KeyScreen())
+        elif event.button.id == "btn_model":
+            self.app.push_screen(ModelScreen())
         elif event.button.id == "btn_persona":
             self.app.push_screen(PersonaScreen())
         elif event.button.id == "btn_skills":
@@ -80,6 +83,20 @@ class ConfigScreen(Screen):
             self.app.push_screen(DalaiScreen())
         elif event.button.id == "btn_chat":
             self.app.push_screen(ChatScreen())
+
+class ModelScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label("Enter Model ID (e.g. gpt-4o, qwen/qwen-2.5-coder-32b-instruct):", classes="title"),
+            Input(placeholder="Model name...", id="model_input", value=config.model),
+            Button("Save", id="btn_save"),
+            Button("Back", id="btn_back")
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn_save":
+            config.model = self.query_one("#model_input", Input).value
+        self.app.pop_screen()
 
 class SkillsScreen(Screen):
     def compose(self) -> ComposeResult:
@@ -224,9 +241,12 @@ class ChatScreen(Screen):
         )
 
     def on_mount(self) -> None:
-        log = self.query_one("#chat_log", RichLog)
-        log.write(f"[bold red]🔥 AWESOME CODE ┃ Persona: {config.persona} ┃ Engine: {config.model}[/bold red]\n")
+        self.print_header()
         self.query_one("#chat_input", Input).focus()
+
+    def print_header(self) -> None:
+        log = self.query_one("#chat_log", RichLog)
+        log.write(f"\n[bold red]🔥 AWESOME CODE ┃ Persona: {config.persona} ┃ Engine: {config.model}[/bold red]\n")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         user_input = event.value
@@ -243,6 +263,14 @@ class ChatScreen(Screen):
                 log.write("[bold blue]AGENT:[/bold blue] 💾 Loading MiMo-style Persistent Memory...")
             elif user_input == "/skills":
                 self.app.push_screen(SkillsScreen())
+            elif user_input.startswith("/model"):
+                parts = user_input.split(" ", 1)
+                if len(parts) > 1:
+                    config.model = parts[1].strip()
+                    log.write(f"[bold yellow]⚙️ Engine Switched to:[/bold yellow] {config.model}")
+                    self.print_header()
+                else:
+                    self.app.push_screen(ModelScreen())
             elif user_input.startswith("/exec "):
                 if config.skills["Terminal Execution"]:
                     cmd = user_input[6:]
@@ -259,7 +287,7 @@ class ChatScreen(Screen):
             elif user_input == "/clear":
                 log.clear()
             else:
-                log.write("[bold red]AGENT:[/bold red] Unknown command. Try /dreamawesome, /memory, /skills, /exec <cmd>, /clear")
+                log.write("[bold red]AGENT:[/bold red] Unknown command. Try /model, /exec <cmd>, /dreamawesome, /skills, /clear")
             return
 
         # Prepare API Call
