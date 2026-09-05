@@ -13,23 +13,8 @@ function App() {
   const bg = () => theme() === "dark" ? "black" : "white";
 
   useKeyboard((key) => {
-    if (key.name === "return") {
-      const text = input().trim();
-      if (!text) return;
-
-      if (text === "/dark") { setTheme("dark"); setInput(""); setShowCommands(false); return; }
-      if (text === "/light") { setTheme("light"); setInput(""); setShowCommands(false); return; }
-      if (text === "/exit") { process.exit(0); }
-
-      setMessages((prev) => [...prev, { role: "user", text }]);
-      setInput("");
-      setShowCommands(false);
-
-      // Mock AI response
-      setTimeout(() => {
-        setMessages((prev) => [...prev, { role: "agent", text: "Working on: " + text }]);
-      }, 500);
-    } else if (key.name === "tab") {
+    // Only handle global hotkeys here
+    if (key.name === "tab") {
       setTheme(theme() === "dark" ? "light" : "dark");
     } else if (key.sequence === "/") {
       setShowCommands(true);
@@ -86,7 +71,24 @@ function App() {
             flexGrow={1}
             color={fg()}
             value={input()}
-            onChange={(val: string) => setInput(val)}
+            onInput={(val: string) => setInput(val)}
+            onSubmit={() => {
+              const text = input().trim();
+              if (!text) return;
+
+              if (text === "/dark") { setTheme("dark"); setInput(""); setShowCommands(false); return; }
+              if (text === "/light") { setTheme("light"); setInput(""); setShowCommands(false); return; }
+              if (text === "/exit") { process.exit(0); }
+
+              setMessages((prev) => [...prev, { role: "user", text }]);
+              setInput("");
+              setShowCommands(false);
+
+              // Mock AI response
+              setTimeout(() => {
+                setMessages((prev) => [...prev, { role: "agent", text: "Working on: " + text }]);
+              }, 500);
+            }}
           />
         </box>
         
