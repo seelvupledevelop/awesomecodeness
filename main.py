@@ -20,7 +20,8 @@ class Config:
             "Terminal Execution": True,
             "Web Search": False,
             "IDE Integration": False,
-            "GitHub Repo Search": False
+            "GitHub Repo Search": False,
+            "File System Operations": True
         }
 
 config = Config()
@@ -108,6 +109,7 @@ class SkillsScreen(Screen):
                 f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
                 f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks",
                 f"[ {'X' if config.skills['GitHub Repo Search'] else ' '} ] GitHub Repo Search (Ponytail)",
+                f"[ {'X' if config.skills['File System Operations'] else ' '} ] File System Operations",
                 id="skills_list"
             ),
             Label("\nUse Enter to toggle skills. These enhance what your agent can do natively!"),
@@ -127,7 +129,8 @@ class SkillsScreen(Screen):
             f"[ {'X' if config.skills['Terminal Execution'] else ' '} ] Terminal Execution Sandbox",
             f"[ {'X' if config.skills['Web Search'] else ' '} ] Web Search Plugin",
             f"[ {'X' if config.skills['IDE Integration'] else ' '} ] IDE Integration Hooks",
-            f"[ {'X' if config.skills['GitHub Repo Search'] else ' '} ] GitHub Repo Search (Ponytail)"
+            f"[ {'X' if config.skills['GitHub Repo Search'] else ' '} ] GitHub Repo Search (Ponytail)",
+                f"[ {'X' if config.skills['File System Operations'] else ' '} ] File System Operations"
         ])
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -237,10 +240,17 @@ class DalaiScreen(Screen):
 
 class ChatScreen(Screen):
     def compose(self) -> ComposeResult:
-        yield Vertical(
-            RichLog(id="chat_log", highlight=True, markup=True, wrap=True),
-            Input(placeholder="> Type your message... (type / for commands)", id="chat_input"),
-            id="chat_container"
+        yield Horizontal(
+            Vertical(
+                RichLog(id="chat_log", highlight=True, markup=True, wrap=True),
+                Input(placeholder="> Type your message... (type / for commands)", id="chat_input"),
+                id="chat_container"
+            ),
+            Vertical(
+                Label("🌐 Chrome Preview (Terminal)", classes="title"),
+                RichLog(id="preview_log", wrap=True),
+                id="preview_sidebar"
+            )
         )
 
     def on_mount(self) -> None:
@@ -287,6 +297,24 @@ class ChatScreen(Screen):
                         log.write(f"[bold red]Execution failed: {str(e)}[/bold red]")
                 else:
                     log.write("[bold red]❌ Terminal Execution Skill is NOT installed/enabled. Go to Config -> Manage Skills to enable it.[/bold red]")
+            elif user_input.startswith("/preview"):
+                sidebar = self.query_one("#preview_sidebar", Vertical)
+                sidebar.display = not sidebar.display
+                log.write("[bold yellow]⚙️ Toggled Chrome Preview Sidebar[/bold yellow]")
+            elif user_input.startswith("/fetch "):
+                url = user_input[7:].strip()
+                if not url.startswith("http"): url = "http://" + url
+                sidebar = self.query_one("#preview_sidebar", Vertical)
+                sidebar.display = True
+                plog = self.query_one("#preview_log", RichLog)
+                plog.clear()
+                plog.write(f"[bold cyan]Fetching {url}...[/bold cyan]")
+                try:
+                    r = httpx.get(url, timeout=5)
+                    plog.write(f"[bold green]Status: {r.status_code}[/bold green]\\n")
+                    plog.write(r.text[:3000])
+                except Exception as e:
+                    plog.write(f"[bold red]Error loading page: {e}[/bold red]")
             elif user_input == "/clear":
                 log.clear()
             else:
@@ -383,7 +411,15 @@ class AwesomeApp(App):
     }
     #chat_container {
         height: 100%;
+        width: 1fr;
         border-left: vkey #ff5555;
+    }
+    #preview_sidebar {
+        width: 40%;
+        height: 100%;
+        border-left: solid #ff5555;
+        display: none;
+        padding: 1;
     }
     RichLog {
         height: 1fr;
