@@ -262,9 +262,17 @@ class ChatScreen(Screen):
         log.write(f"\n[bold red]🔥 AWESOME CODE ┃ Persona: {config.persona} ┃ Engine: {config.model}[/bold red]\n")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
-        user_input = event.value
+        user_input = event.value.strip()
         inp = self.query_one("#chat_input", Input)
         inp.value = ""
+        
+        if not user_input:
+            return
+
+        if user_input.lower() in ["exit", "quit", "/exit", "/quit"]:
+            self.app.exit()
+            return
+
         log = self.query_one("#chat_log", RichLog)
         
         log.write(f"\n[bold green]YOU:[/bold green] {user_input}")
